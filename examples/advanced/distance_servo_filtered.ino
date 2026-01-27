@@ -1,5 +1,5 @@
 /* ============================================================================
- * TwiST Framework | Advanced: Distance Servo with Filtering & Hysteresis
+ * TwiST Framework v1.2.0 | Advanced: Distance Servo with Filtering & Hysteresis
  * ============================================================================
  *
  * ADVANCED EXAMPLE: Production-grade servo control with noise reduction.
@@ -18,6 +18,7 @@
  *   - Multi-device coordination (DistanceSensor + Servo)
  *   - Input-to-output mapping via application logic
  *   - Clean Architecture with TWO hardware abstractions
+ *   - Logger for structured output (v1.2.0)
  *
  * Hardware Required:
  *   - ESP32-C6 (XIAO or compatible)
@@ -45,13 +46,19 @@
  *     External 5V       → Servo VCC
  *     GND               → Servo GND
  *
+ * NOTE: This is an ADVANCED example with direct device instantiation.
+ *       For PRODUCTION code patterns, see main.ino which demonstrates:
+ *         - ApplicationConfig.cpp for centralized device management
+ *         - Name-based access: App::servo("FilteredServo").setAngle(angle)
+ *         - Stable contracts when device topology changes
+ *
  * Author: Voldemaras Birskys
  * License: MIT
  * ============================================================================ */
 
-#include "src/TwiST_Framework/TwiST.h"
-#include "src/TwiST_Framework/Drivers/Distance/HCSR04.h"
-#include "src/TwiST_Framework/Drivers/PWM/PCA9685.h"
+#include "../../src/TwiST_Framework/TwiST.h"
+#include "../../src/TwiST_Framework/Drivers/Distance/HCSR04.h"
+#include "../../src/TwiST_Framework/Drivers/PWM/PCA9685.h"
 
 using namespace TwiST;
 using namespace TwiST::Devices;
@@ -73,8 +80,9 @@ IDistanceDriver& distanceDriver = hcsr04;  // Distance abstraction
 IPWMDriver& pwm = pca9685;                 // PWM abstraction
 
 // Layer 4: Logical devices (hardware-independent)
-DistanceSensor sensor(distanceDriver, 300, framework.eventBus(), 50);  // 50ms measurement interval
-Servo servo(pwm, 0, 100, framework.eventBus());  // Channel 0, Device ID 100
+// NOTE: Device names added for production-style name-based access
+DistanceSensor sensor(distanceDriver, 300, "FilteredSensor", framework.eventBus(), 50);  // 50ms measurement interval
+Servo servo(pwm, 0, 100, "FilteredServo", framework.eventBus());  // Channel 0, Device ID 100
 
 // ============================================================================
 // Application Constants - Control Parameters
@@ -106,11 +114,6 @@ void setup() {
     Serial.begin(115200);
     delay(1000);
 
-    Serial.println("\n========================================");
-    Serial.println("   TwiST Framework");
-    Serial.println("   Distance-Controlled Servo");
-    Serial.println("========================================\n");
-
     // Initialize framework
     framework.initialize();
 
@@ -137,20 +140,18 @@ void setup() {
     framework.registry()->registerDevice(&sensor);
     framework.registry()->registerDevice(&servo);
 
-    Serial.println("Hardware initialized:");
-    Serial.println("  HC-SR04: GPIO16(TRIG), GPIO17(ECHO)");
-    Serial.println("  PCA9685: I2C 0x40, 50Hz");
-    Serial.println("  Servo:   Channel 0, 110-540 steps\n");
-    Serial.println("Control Logic:");
-    Serial.println("  < 5 cm:   Servo at 0° (too close)");
-    Serial.println("  5-30 cm:  Servo 0° to 180° (proportional)");
-    Serial.println("  > 30 cm:  Servo at 180° (out of range)");
-    Serial.println("\nSensitivity:");
-    Serial.print("  Hysteresis: ");
-    Serial.print(HYSTERESIS_CM);
-    Serial.println(" cm (servo moves only if change >= 2 cm)");
-    Serial.println("  Filter: 0.3 (30% new, 70% previous)\n");
-    Serial.println("Starting distance-controlled servo...\n");
+    Logger::info("SETUP", "Hardware initialized:");
+    Logger::info("SETUP", "  HC-SR04: GPIO16(TRIG), GPIO17(ECHO)");
+    Logger::info("SETUP", "  PCA9685: I2C 0x40, 50Hz");
+    Logger::info("SETUP", "  Servo:   Channel 0, 110-540 steps");
+    Logger::info("SETUP", "Control Logic:");
+    Logger::info("SETUP", "  < 5 cm:   Servo at 0° (too close)");
+    Logger::info("SETUP", "  5-30 cm:  Servo 0° to 180° (proportional)");
+    Logger::info("SETUP", "  > 30 cm:  Servo at 180° (out of range)");
+    Logger::info("SETUP", "Sensitivity:");
+    Logger::logf(Logger::Level::INFO, "SETUP", "  Hysteresis: %d cm (servo moves only if change >= 2 cm)", HYSTERESIS_CM);
+    Logger::info("SETUP", "  Filter: 0.3 (30% new, 70% previous)");
+    Logger::info("SETUP", "Starting distance-controlled servo...");
 }
 
 // ============================================================================
@@ -181,9 +182,7 @@ void loop() {
         if (distanceCm < MIN_DISTANCE) {
             // Too close (< 5 cm): servo at 0°
             angle = 0.0f;
-            Serial.print("Distance: ");
-            Serial.print(distanceCm);
-            Serial.println(" cm (TOO CLOSE) → Servo: 0°");
+            Logger::logf(Logger::Level::INFO, "CONTROL", "Distance: %d cm (TOO CLOSE) -> Servo: 0°", distanceCm);
 
         } else if (distanceCm <= MAX_DISTANCE) {
             // Within active range (5-30 cm): proportional control
@@ -197,18 +196,12 @@ void loop() {
             if (angle < 0.0f) angle = 0.0f;
             if (angle > 180.0f) angle = 180.0f;
 
-            Serial.print("Distance: ");
-            Serial.print(distanceCm);
-            Serial.print(" cm → Servo: ");
-            Serial.print(angle, 0);
-            Serial.println("°");
+            Logger::logf(Logger::Level::INFO, "CONTROL", "Distance: %d cm -> Servo: %.0f°", distanceCm, angle);
 
         } else {
             // Out of range (> 30 cm): servo at 180°
             angle = 180.0f;
-            Serial.print("Distance: ");
-            Serial.print(distanceCm);
-            Serial.println(" cm (OUT OF RANGE) → Servo: 180°");
+            Logger::logf(Logger::Level::INFO, "CONTROL", "Distance: %d cm (OUT OF RANGE) -> Servo: 180°", distanceCm);
         }
 
         servo.setAngle(angle);

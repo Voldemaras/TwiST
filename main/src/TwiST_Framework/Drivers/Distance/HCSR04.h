@@ -42,47 +42,46 @@
 #include <Arduino.h>
 
 namespace TwiST {
-namespace Drivers {
-
-/**
- * @brief HC-SR04 ultrasonic distance sensor driver
- *
- * CRITICAL: ECHO pin outputs 5V - use voltage divider for ESP32!
- * Implements IDistanceDriver interface for hardware independence.
- */
-class HCSR04 : public IDistanceDriver {
-public:
-    /**
-     * @brief Construct HC-SR04 driver
-     * @param trigPin GPIO pin for TRIG signal (locked at construction)
-     * @param echoPin GPIO pin for ECHO signal (locked at construction)
-     */
-    HCSR04(uint8_t trigPin, uint8_t echoPin);
+    namespace Drivers {
 
     /**
-     * @brief Initialize hardware (pinMode setup)
-     * @return true if initialization successful
+     * @brief HC-SR04 ultrasonic distance sensor driver
+     *
+     * CRITICAL: ECHO pin outputs 5V - use voltage divider for ESP32!
+     * Implements IDistanceDriver interface for hardware independence.
      */
-    bool begin();
+    class HCSR04 : public IDistanceDriver {
+        public:
+            /**
+             * @brief Construct HC-SR04 driver
+             * @param trigPin GPIO pin for TRIG signal (locked at construction)
+             * @param echoPin GPIO pin for ECHO signal (locked at construction)
+             */
+            HCSR04(uint8_t trigPin, uint8_t echoPin);
 
-    // IDistanceDriver interface implementation
-    void triggerMeasurement() override;
-    float readDistanceCm() override;
-    bool isMeasurementReady() const override;
-    float getMaxRange() const override { return 400.0f; }
+            /**
+             * @brief Initialize hardware (pinMode setup)
+             * @return true if initialization successful
+             */
+            bool begin();
 
-private:
-    uint8_t _trigPin;
-    uint8_t _echoPin;
-    bool _measurementReady;
-    float _lastDistance;
+            // IDistanceDriver interface implementation
+            void triggerMeasurement() override;
+            float readDistanceCm() override;
+            bool isMeasurementReady() const override;
+            float getMaxRange() const override { return 400.0f; }
 
-    // Constants
-    static constexpr unsigned long TRIGGER_PULSE_US = 10;    // 10μs trigger pulse
-    static constexpr unsigned long TIMEOUT_US = 30000;       // 30ms timeout (400cm max)
-    static constexpr float SOUND_SPEED_CM_US = 0.034f;       // 340 m/s = 0.034 cm/μs
-};
+        private:
+            uint8_t _trigPin;
+            uint8_t _echoPin;
+            bool _measurementReady;
+            float _lastDistance;
 
-}}  // namespace TwiST::Drivers
-
+            // Constants
+            static constexpr unsigned long TRIGGER_PULSE_US = 10;    // 10μs trigger pulse
+            static constexpr unsigned long TIMEOUT_US = 30000;       // 30ms timeout (400cm max)
+            static constexpr float SOUND_SPEED_CM_US = 0.034f;       // 340 m/s = 0.034 cm/μs
+        };
+    }
+}  // namespace TwiST::Drivers
 #endif

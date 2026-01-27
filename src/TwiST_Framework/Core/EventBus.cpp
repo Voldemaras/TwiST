@@ -1,5 +1,8 @@
 #include "EventBus.h"
+#include "Logger.h"  // For centralized logging (v1.2.0)
 #include <string.h>
+
+using TwiST::Logger;  // Use Logger from TwiST namespace
 
 EventBus::EventBus()
     : _listenerCount(0),
@@ -24,23 +27,23 @@ EventBus::EventBus()
         _eventQueue[i].data = NULL;
     }
 
-    Serial.println("[EventBus] Initialized");
+    Logger::info("EVENTBUS", "Initialized");
 }
 
 EventBus::~EventBus() {
-    Serial.println("[EventBus] Shutting down");
+    Logger::info("EVENTBUS", "Shutting down");
 }
 
 // ===== Subscription =====
 
 uint16_t EventBus::subscribe(const char* eventName, EventListener listener, EventPriority priority) {
     if (eventName == NULL || listener == NULL) {
-        Serial.println("[EventBus ERROR] Cannot subscribe with NULL eventName or listener");
+        Logger::error("EVENTBUS", "Cannot subscribe with NULL eventName or listener");
         return 0;
     }
 
     if (_listenerCount >= MAX_EVENT_LISTENERS) {
-        Serial.println("[EventBus ERROR] Listener limit reached");
+        Logger::error("EVENTBUS", "Listener limit reached");
         return 0;
     }
 
@@ -54,11 +57,8 @@ uint16_t EventBus::subscribe(const char* eventName, EventListener listener, Even
             _listeners[i].active = true;
             _listenerCount++;
 
-            Serial.print("[EventBus] Subscribed to '");
-            Serial.print(eventName);
-            Serial.print("' (ID: ");
-            Serial.print(_listeners[i].id);
-            Serial.println(")");
+            Logger::logf(Logger::Level::INFO, "EVENTBUS", "Subscribed to '%s' (ID: %d)",
+                        eventName, _listeners[i].id);
 
             return _listeners[i].id;
         }
@@ -70,8 +70,7 @@ uint16_t EventBus::subscribe(const char* eventName, EventListener listener, Even
 void EventBus::unsubscribe(uint16_t listenerId) {
     for (uint8_t i = 0; i < MAX_EVENT_LISTENERS; i++) {
         if (_listeners[i].active && _listeners[i].id == listenerId) {
-            Serial.print("[EventBus] Unsubscribed listener ID: ");
-            Serial.println(listenerId);
+            Logger::logf(Logger::Level::INFO, "EVENTBUS", "Unsubscribed listener ID: %d", listenerId);
 
             _listeners[i].active = false;
             _listeners[i].id = 0;
@@ -88,9 +87,7 @@ void EventBus::unsubscribeAll(const char* eventName) {
         return;
     }
 
-    Serial.print("[EventBus] Unsubscribing all from '");
-    Serial.print(eventName);
-    Serial.println("'");
+    Logger::logf(Logger::Level::INFO, "EVENTBUS", "Unsubscribing all from '%s'", eventName);
 
     for (uint8_t i = 0; i < MAX_EVENT_LISTENERS; i++) {
         if (_listeners[i].active && strcmp(_listeners[i].eventName, eventName) == 0) {
@@ -120,7 +117,7 @@ void EventBus::publishAsync(const Event& event) {
     }
 
     if (_queueSize >= MAX_EVENT_QUEUE) {
-        Serial.println("[EventBus WARNING] Event queue full, dropping event");
+        Logger::warning("EVENTBUS", "Event queue full, dropping event");
         return;
     }
 

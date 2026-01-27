@@ -16,6 +16,7 @@
 #include "Core/DeviceRegistry.h"
 #include "Core/EventBus.h"
 #include "Core/ConfigManager.h"
+#include "Core/Logger.h"
 
 // Devices (hardware-independent)
 #include "Devices/Servo.h"

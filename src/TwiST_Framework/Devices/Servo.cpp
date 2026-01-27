@@ -3,8 +3,9 @@
 namespace TwiST {
     namespace Devices {
 
-        Servo::Servo(IPWMDriver& pwm, uint8_t channel, uint16_t deviceId, EventBus& eventBus)
-            : _pwm(pwm), _channel(channel), _deviceId(deviceId), _eventBus(eventBus) {
+        Servo::Servo(IPWMDriver& pwm, uint8_t channel, uint16_t deviceId,
+                     const char* name, EventBus& eventBus)
+            : _pwm(pwm), _channel(channel), _deviceId(deviceId), _name(name), _eventBus(eventBus) {
             // All dependencies locked at construction - no half-initialized state possible
         }
 
@@ -53,7 +54,7 @@ namespace TwiST {
         DeviceInfo Servo::getInfo() const {
             DeviceInfo info;
             info.type = "Servo";
-            info.name = "Servo Motor";
+            info.name = _name;  // Use human-readable name from constructor
             info.id = _deviceId;
             info.capabilities = CAP_OUTPUT | CAP_POSITION | CAP_CONFIGURABLE;
             info.channelCount = 1;  // One servo = one channel

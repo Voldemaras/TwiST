@@ -95,9 +95,7 @@ struct EventSubscription {
  *
  * // Subscribe to events
  * eventBus.subscribe("servo.move.complete", [](const Event& evt) {
- *   Serial.print("Servo ");
- *   Serial.print(evt.sourceDeviceId);
- *   Serial.println(" finished moving");
+ *   Logger::logf(Logger::Level::INFO, "APP", "Servo %d finished moving", evt.sourceDeviceId);
  * });
  *
  * // Publish event

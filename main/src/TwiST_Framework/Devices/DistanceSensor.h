@@ -58,11 +58,13 @@ namespace TwiST {
              * @brief Construct distance sensor device
              * @param driver Reference to IDistanceDriver (NOT HCSR04!)
              * @param deviceId Unique device identifier
+             * @param name Human-readable device name (e.g., "ObstacleSensor")
              * @param eventBus Reference to EventBus (ALL dependencies in constructor!)
              * @param measurementIntervalMs Automatic measurement interval (default: 100ms)
              */
-            DistanceSensor(IDistanceDriver& driver, uint16_t deviceId, EventBus& eventBus,
-                        unsigned long measurementIntervalMs = 100);
+            DistanceSensor(IDistanceDriver& driver, uint16_t deviceId,
+                          const char* name, EventBus& eventBus,
+                          unsigned long measurementIntervalMs = 100);
 
             // IDevice interface - Lifecycle
             bool initialize() override;
@@ -71,6 +73,7 @@ namespace TwiST {
 
             // IDevice interface - Identity & Capabilities
             DeviceInfo getInfo() const override;
+            const char* getName() const override { return _name; }
             uint16_t getCapabilities() const override;
             bool hasCapability(DeviceCapability cap) const override;
 
@@ -105,6 +108,7 @@ namespace TwiST {
         private:
             IDistanceDriver& _driver;
             uint16_t _deviceId;
+            const char* _name;  // Human-readable device name
             EventBus& _eventBus;
 
             unsigned long _measurementInterval;

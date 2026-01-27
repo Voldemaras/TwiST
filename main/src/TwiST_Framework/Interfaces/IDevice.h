@@ -112,6 +112,15 @@ namespace TwiST {
         virtual DeviceInfo getInfo() const = 0;
 
         /**
+         * @brief Get human-readable device name
+         * @return Device name (e.g., "GripperServo", "MainJoystick")
+         *
+         * This is a convenience method for quick name access without
+         * constructing the full DeviceInfo structure.
+         */
+        virtual const char* getName() const = 0;
+
+        /**
          * @brief Get device capabilities bitmask
          * @return Bitfield of DeviceCapability flags
          */

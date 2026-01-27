@@ -57,9 +57,11 @@ namespace TwiST {
              * @param pwm Reference to IPWMDriver (NOT PCA9685!)
              * @param channel PWM channel (LOCKED at construction)
              * @param deviceId Unique device ID
+             * @param name Human-readable device name (e.g., "GripperServo")
              * @param eventBus Reference to EventBus (ALL dependencies in constructor!)
              */
-            Servo(IPWMDriver& pwm, uint8_t channel, uint16_t deviceId, EventBus& eventBus);
+            Servo(IPWMDriver& pwm, uint8_t channel, uint16_t deviceId,
+                  const char* name, EventBus& eventBus);
             // ABSTRACTION, not concrete hardware!
             // Constructor injection!
 
@@ -70,6 +72,7 @@ namespace TwiST {
 
             // IDevice interface - Identity & Capabilities
             DeviceInfo getInfo() const override;
+            const char* getName() const override { return _name; }
             uint16_t getCapabilities() const override;
             bool hasCapability(DeviceCapability cap) const override;
 
@@ -128,6 +131,7 @@ namespace TwiST {
             IPWMDriver& _pwm;  // Abstract interface, not concrete driver
             uint8_t _channel;  // CONST - known at construction, never changes
             uint16_t _deviceId;
+            const char* _name;  // Human-readable device name
             EventBus& _eventBus;  // Reference, not pointer - ALWAYS valid
 
             // State

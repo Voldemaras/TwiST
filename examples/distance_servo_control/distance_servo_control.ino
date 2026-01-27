@@ -1,5 +1,5 @@
 /* ============================================================================
- * TwiST Framework | Distance-Controlled Servo
+ * TwiST Framework v1.2.0 | Distance-Controlled Servo
  * ============================================================================
  *
  * Move your hand closer = servo moves to 0°
@@ -9,13 +9,23 @@
  * Hardware:
  *   - ESP32-C6 + HC-SR04 sensor + PCA9685 + Servo
  *
+ * This example demonstrates v1.2.0 features:
+ *   - Multi-device coordination
+ *   - Logger for structured output
+ *   - Direct device instantiation (educational example)
+ *
+ * NOTE: This is a BASIC example with direct device instantiation.
+ *       For PRODUCTION code patterns, see main.ino which demonstrates:
+ *         - ApplicationConfig.cpp for centralized device management
+ *         - Name-based access for multi-device coordination
+ *
  * Author: Voldemaras Birskys
  * License: MIT
  * ============================================================================ */
 
-#include "src/TwiST_Framework/TwiST.h"
-#include "src/TwiST_Framework/Drivers/Distance/HCSR04.h"
-#include "src/TwiST_Framework/Drivers/PWM/PCA9685.h"
+#include "../../src/TwiST_Framework/TwiST.h"
+#include "../../src/TwiST_Framework/Drivers/Distance/HCSR04.h"
+#include "../../src/TwiST_Framework/Drivers/PWM/PCA9685.h"
 
 using namespace TwiST;
 using namespace TwiST::Devices;
@@ -29,8 +39,9 @@ PCA9685 pca9685(0x40);
 IDistanceDriver& distanceDriver = hcsr04;
 IPWMDriver& pwm = pca9685;
 
-DistanceSensor sensor(distanceDriver, 300, framework.eventBus(), 50);
-Servo servo(pwm, 0, 100, framework.eventBus());
+// NOTE: Device names added for production-style name-based access
+DistanceSensor sensor(distanceDriver, 300, "ProximitySensor", framework.eventBus(), 50);
+Servo servo(pwm, 0, 100, "ControlledServo", framework.eventBus());
 
 void setup() {
     Serial.begin(115200);
@@ -50,8 +61,8 @@ void setup() {
     framework.registry()->registerDevice(&sensor);
     framework.registry()->registerDevice(&servo);
 
-    Serial.println("Distance-Controlled Servo Ready!");
-    Serial.println("Move hand 0-10 cm from sensor\n");
+    Logger::info("CONTROL", "Distance-Controlled Servo Ready!");
+    Logger::info("CONTROL", "Move hand 0-10 cm from sensor");
 }
 
 void loop() {

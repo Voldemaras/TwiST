@@ -18,9 +18,11 @@ namespace TwiST {
 namespace Devices {
 
 DistanceSensor::DistanceSensor(IDistanceDriver& driver, uint16_t deviceId,
-                               EventBus& eventBus, unsigned long measurementIntervalMs)
+                               const char* name, EventBus& eventBus,
+                               unsigned long measurementIntervalMs)
     : _driver(driver)
     , _deviceId(deviceId)
+    , _name(name)
     , _eventBus(eventBus)
     , _measurementInterval(measurementIntervalMs)
     , _lastMeasurementTime(0)
@@ -98,7 +100,7 @@ void DistanceSensor::update() {
 DeviceInfo DistanceSensor::getInfo() const {
     DeviceInfo info;
     info.type = "DistanceSensor";
-    info.name = "Distance Sensor";
+    info.name = _name;  // Use human-readable name from constructor
     info.id = _deviceId;
     info.capabilities = CAP_INPUT | CAP_ANALOG | CAP_CONFIGURABLE;
     info.channelCount = 1;  // One distance sensor = one channel

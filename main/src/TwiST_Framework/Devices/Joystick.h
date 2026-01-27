@@ -50,9 +50,11 @@ namespace TwiST {
              * @param xAxis Reference to IADCDriver for X-axis (NOT ESP32ADC!)
              * @param yAxis Reference to IADCDriver for Y-axis
              * @param deviceId Unique device ID
+             * @param name Human-readable device name (e.g., "MainJoystick")
              * @param eventBus Reference to EventBus (ALL dependencies in constructor!)
              */
-            Joystick(IADCDriver& xAxis, IADCDriver& yAxis, uint16_t deviceId, EventBus& eventBus);
+            Joystick(IADCDriver& xAxis, IADCDriver& yAxis, uint16_t deviceId,
+                     const char* name, EventBus& eventBus);
             // ABSTRACTION, not concrete hardware!
             // Constructor injection!
 
@@ -63,6 +65,7 @@ namespace TwiST {
 
             // IDevice interface - Identity & Capabilities
             DeviceInfo getInfo() const override;
+            const char* getName() const override { return _name; }
             uint16_t getCapabilities() const override;
             bool hasCapability(DeviceCapability cap) const override;
 
@@ -97,6 +100,7 @@ namespace TwiST {
             IADCDriver& _xAxis;  // Abstract interface
             IADCDriver& _yAxis;  // Abstract interface
             uint16_t _deviceId;
+            const char* _name;  // Human-readable device name
             EventBus& _eventBus;  // Reference, not pointer - ALWAYS valid
 
             // State

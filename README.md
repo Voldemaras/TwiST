@@ -1,314 +1,515 @@
-# TwiST Framework
+# TwiST Framework v1.2.0
 
-**Twin System Technology** - Clean architecture framework for ESP32 robotics.
+**Build Complex Robotics with Simple Code**
 
-Simple API. Professional architecture. No Arduino chaos.
+TwiST Framework makes ESP32 robotics easy. Control servos, joysticks, and sensors with just a few lines of code. No need to understand low-level hardware details - the framework handles everything for you.
 
----
-
-## What is TwiST?
-
-TwiST separates hardware drivers from application logic. Write clean code that works with any hardware.
-
-**Traditional Arduino:**
-```cpp
-Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(0x40);
-pwm.setPWM(0, 0, map(angle, 0, 180, 150, 600)); // Magic numbers everywhere
-```
-
-**With TwiST:**
-```cpp
-Servo servo(pwmDriver, 0, 100, eventBus);
-servo.calibrateBySteps(110, 540);
-servo.setAngle(90);  // Clean and simple
-```
+**Author:** Voldemaras Birskys
+**Contact:** voldemaras@gmail.com
+**Version:** 1.2.0.0
+**Release Date:** 2026-01-27
 
 ---
 
-## Quick Start
+## Why TwiST?
 
-### 1. Install Libraries
+**For Beginners:**
+- Write your robot control in 10 lines of code
+- No complex setup, no manual initialization
+- Named devices: `servo("Gripper")` instead of `servo[0]`
+- Built-in safety checks catch configuration errors
 
-Arduino Library Manager:
-- Adafruit PWM Servo Driver Library
-- ArduinoJson
-
-### 2. Open Example
-
-```
-File → Open → PROJEKTAS/examples/basic_servo/basic_servo.ino
-```
-
-Upload to ESP32-C6. Servo sweeps 0° → 180° with smooth easing.
-
-### 3. Calibrate Your Servo
-
-See [CALIBRATION_GUIDE.md](CALIBRATION_GUIDE.md) for step-by-step instructions.
+**For Advanced Users:**
+- Config-driven architecture scales from 2 to 60+ devices
+- Automatic memory management (no memory leaks)
+- Structured logging for debugging
+- Event system for complex automation
 
 ---
 
-## Supported Modules
+## Quick Start: Your First Robot
 
-### Output Devices
-- **Servo** - Precise servo motor control with easing functions
-  - Step-based or pulse-based calibration
-  - Smooth animations (EASE_IN_OUT_QUAD, EASE_CUBIC, etc.)
-  - Speed-based movement
-  - Pause/resume support
+### Step 1: Hardware Setup
 
-### Input Devices
-- **Joystick** - 2-axis analog joystick with deadzone
-  - Automatic calibration
-  - Center deadzone configuration
-  - Normalized output (0.0-1.0)
+Connect to your ESP32:
+- PCA9685 PWM board via I2C (servos)
+- Analog joystick to GPIO pins
+- HC-SR04 distance sensor (optional)
 
-- **DistanceSensor** - Ultrasonic distance measurement
-  - HC-SR04 driver (2-400cm range)
-  - Low-pass filter for noise reduction
-  - Event-driven distance updates
-  - Integer cm readings for stable control
-
-### Supported Hardware
-
-**PWM Drivers:**
-- PCA9685 (16-channel, 12-bit)
-
-**ADC:**
-- ESP32 built-in ADC
-
-**Distance Sensors:**
-- HC-SR04 ultrasonic sensor
-
-**Coming Soon:**
-- Buttons
-- LEDs
-- Stepper motors
-- Additional distance sensors (VL53L0X, etc.)
-
----
-
-## Hardware Setup
-
-### Minimum Setup (Servo Only)
-
-**Components:**
-- ESP32-C6 (XIAO or equivalent)
-- PCA9685 PWM driver
-- Servo motor (SG90 or similar)
-- External 5V power supply (2A minimum)
-
-**Wiring:**
-```
-ESP32    →  PCA9685
-GPIO 22  →  SDA
-GPIO 23  →  SCL
-GND      →  GND
-3.3V     →  VCC
-
-PCA9685 Channel 0 → Servo signal wire
-External 5V → Servo power (red wire)
-GND → Servo ground (brown wire)
-```
-
-**CRITICAL:** Never power servos from ESP32 pins. Use external 5V supply.
-
-### With Joystick
-
-**Additional wiring:**
-```
-ESP32    →  Joystick
-GPIO 0   →  VRx (X-axis)
-GPIO 1   →  VRy (Y-axis)
-3.3V     →  VCC
-GND      →  GND
-```
-
-### With Distance Sensor
-
-**Additional wiring:**
-```
-ESP32    →  HC-SR04
-5V       →  VCC
-GPIO 16  →  TRIG
-GPIO 17  →  ECHO
-GND      →  GND
-```
-
-Note: HC-SR04 3.3V version recommended for ESP32 compatibility.
-
----
-
-## Examples
-
-### Basic Servo
-
-Simplest example - one servo sweeping with easing:
+### Step 2: Write Your Code
 
 ```cpp
 #include "src/TwiST_Framework/TwiST.h"
-#include "src/TwiST_Framework/Drivers/PWM/PCA9685.h"
-
-using namespace TwiST;
-using namespace TwiST::Devices;
-using namespace TwiST::Drivers;
+#include "src/TwiST_Framework/ApplicationConfig.h"
 
 TwiSTFramework framework;
-PCA9685 pca9685(0x40);
-IPWMDriver& pwm = pca9685;
-Servo servo(pwm, 0, 100, framework.eventBus());
 
 void setup() {
+    Serial.begin(115200);
     framework.initialize();
-    pca9685.begin(22, 23);
-    pca9685.setFrequency(50);
-    servo.initialize();
-    servo.calibrateBySteps(110, 540);
-    framework.registry()->registerDevice(&servo);
+    App::initializeSystem(framework);
 }
 
 void loop() {
-    servo.moveToWithEasing(180, 3000, Servo::EASE_IN_OUT_QUAD);
-    while (servo.isMoving()) {
-        framework.update();
-        delay(20);
-    }
+    // Control gripper with joystick
+    float x = App::joystick("MainJoystick").getX();
+    App::servo("GripperServo").setAngle(x * 180);
 
-    servo.moveToWithEasing(0, 3000, Servo::EASE_IN_OUT_QUAD);
-    while (servo.isMoving()) {
-        framework.update();
-        delay(20);
-    }
-}
-```
-
-### Joystick Control
-
-Control servo with joystick X-axis:
-
-```cpp
-// Add after servo setup:
-ESP32ADC adcX(0);
-ESP32ADC adcY(1);
-IADCDriver& xAxis = adcX;
-IADCDriver& yAxis = adcY;
-Joystick joystick(xAxis, yAxis, 200, framework.eventBus());
-
-void setup() {
-    // ... servo setup ...
-
-    adcX.begin();
-    adcY.begin();
-    joystick.initialize();
-    joystick.calibrate(3, 1677, 3290, 3, 1677, 3290);
-    joystick.setDeadzone(50);
-    framework.registry()->registerDevice(&joystick);
-}
-
-void loop() {
-    float x = joystick.getX();
-    servo.setAngle(x * 180.0);
     framework.update();
     delay(20);
 }
 ```
 
-### Distance-Controlled Servo
+That's it. No driver initialization, no calibration code, no manual device creation.
 
-See `examples/distance_servo_control/` for hand distance controlling servo position.
+### Step 3: Configure Your Devices
+
+Edit `TwiST_Config.h` to match your hardware:
+
+```cpp
+static constexpr std::array<ServoConfig, 2> SERVO_CONFIGS = {{
+    {"GripperServo", 0, 0, 100, CalibrationMode::STEPS, 110, 540, 0, 0, 0, 0},
+    {"ArmServo", 0, 1, 101, CalibrationMode::STEPS, 120, 550, 0, 0, 0, 0}
+}};
+```
+
+Framework creates all devices automatically from this config.
 
 ---
 
-## Key Concepts
+## What You Can Build
 
-### Clean Architecture
-
-```
-Application (your code)
-    ↓
-Devices (Servo, Joystick - hardware-independent)
-    ↓
-Interfaces (IPWMDriver, IADCDriver - abstractions)
-    ↓
-Drivers (PCA9685, ESP32ADC - hardware-specific)
-```
-
-Devices never know about specific hardware. Swap PCA9685 for another PWM driver? Change only the driver instantiation.
-
-### Calibration
-
-Every servo is different. Find your values:
+### Example 1: Joystick-Controlled Robot Arm
 
 ```cpp
-servo.calibrateBySteps(110, 540);  // Recommended
-// or
-servo.calibrate(500, 2500, 0, 180);  // Traditional microseconds
+void loop() {
+    float x = App::joystick("MainJoystick").getX();
+    float y = App::joystick("MainJoystick").getY();
+
+    App::servo("BaseServo").setAngle(x * 180);
+    App::servo("ArmServo").setAngle(y * 180);
+
+    framework.update();
+    delay(20);
+}
 ```
 
-See [CALIBRATION_GUIDE.md](CALIBRATION_GUIDE.md) for detailed instructions.
-
-### Easing Functions
-
-Smooth, professional motion:
+### Example 2: Autonomous Smooth Motion
 
 ```cpp
-servo.moveToWithEasing(180, 3000, Servo::EASE_IN_OUT_QUAD);
+void loop() {
+    if (!App::servo("GripperServo").isMoving()) {
+        // Smooth 3-second motion with easing
+        App::servo("GripperServo").moveToWithEasing(160, 3000, Devices::Servo::EASE_OUT_CUBIC);
+    }
+
+    framework.update();
+    delay(20);
+}
 ```
 
-Available easing types:
-- `EASE_LINEAR` - Constant speed
-- `EASE_IN_QUAD` / `EASE_OUT_QUAD` - Acceleration/deceleration
-- `EASE_IN_OUT_QUAD` - S-curve (smooth start and end)
-- `EASE_IN_CUBIC` / `EASE_OUT_CUBIC` - Stronger curves
+### Example 3: Distance-Based Control
+
+```cpp
+void loop() {
+    int distance = App::distanceSensor("ObstacleSensor").getDistanceCm();
+
+    if (distance < 20) {
+        App::servo("GripperServo").setAngle(0);   // Close gripper
+    } else {
+        App::servo("GripperServo").setAngle(90);  // Open gripper
+    }
+
+    framework.update();
+    delay(20);
+}
+```
+
+---
+
+## Key Features
+
+### Simple Device Access
+
+**Named devices** - no arrays, no indices:
+```cpp
+App::servo("GripperServo").setAngle(90);
+App::joystick("MainJoystick").getX();
+App::distanceSensor("ObstacleSensor").getDistanceCm();
+```
+
+### Advanced Servo Control
+
+**Smooth animations** - 6 easing modes:
+```cpp
+servo.moveToWithEasing(160, 3000, Devices::Servo::EASE_OUT_CUBIC);
+```
+
+**Speed-based movement**:
+```cpp
+servo.setSpeed(30.0);  // 30 degrees per second
+servo.moveWithSpeed(180);
+```
+
+**Incremental steps**:
+```cpp
+servo.moveBySteps(10, 500);  // Move +10 degrees in 500ms
+```
+
+### Automatic Calibration
+
+Configure once in `TwiST_Config.h`, framework applies automatically:
+```cpp
+{"GripperServo", 0, 0, 100, CalibrationMode::STEPS, 110, 540, 0, 0, 0, 0}
+
+// These values are applied automatically
+```
+
+### Built-in Safety
+
+Framework checks your configuration at startup:
+- Duplicate device IDs or names
+- I2C address conflicts
+- GPIO pin collisions
+- PWM channel overlaps
+
+If configuration is wrong, system halts with clear error message.
+
+---
+
+## What's New in v1.2.0
+
+**Centralized Logging System:**
+```cpp
+Logger::info("APP", "System started");
+Logger::logf(Logger::Level::INFO, "APP", "Servo angle: %d", angle);
+```
+- Structured logs with timestamps and severity levels
+- Module-based categorization
+- Consistent output format across framework
+
+**Memory Safety:**
+- Automatic memory management with std::unique_ptr
+- No memory leaks, no manual cleanup
+- Production-grade reliability
+
+**Single IO Channel:**
+- All output goes through Logger
+- No mixed Serial.print and framework messages
+- Clean, professional console output
+
+---
+
+## Configuration Guide
+
+### Adding a New Servo
+
+Open `TwiST_Config.h`, add one line to `SERVO_CONFIGS`:
+
+```cpp
+static constexpr std::array<ServoConfig, 3> SERVO_CONFIGS = {{
+    {"GripperServo", 0, 0, 100, CalibrationMode::STEPS, 110, 540, 0, 0, 0, 0},
+    {"BaseServo", 0, 1, 101, CalibrationMode::STEPS, 120, 550, 0, 0, 0, 0},
+    {"NewServo", 0, 2, 102, CalibrationMode::STEPS, 110, 540, 0, 0, 0, 0}  // NEW
+}};
+```
+
+Framework automatically:
+- Creates the servo device
+- Applies calibration
+- Registers to registry
+- Makes it available as `App::servo("NewServo")`
+
+No code changes in main.ino.
+
+### Adding a New Joystick
+
+Add to `JOYSTICK_CONFIGS`:
+
+```cpp
+static constexpr std::array<JoystickConfig, 2> JOYSTICK_CONFIGS = {{
+    {"MainJoystick", 200, 0, 1, 3, 1677, 3290, 3, 1677, 3290, 50},
+    {"SecondJoystick", 201, 2, 3, 0, 2048, 4095, 0, 2048, 4095, 100}  // NEW
+}};
+```
+
+Use it immediately:
+```cpp
+float x = App::joystick("SecondJoystick").getX();
+```
+
+### Changing ESP32 Board
+
+Different ESP32 boards use different I2C pins. Update in `TwiST_Config.h`:
+
+```cpp
+// For ESP32-C6 (XIAO Seed):
+#define XIAO_SDA_PIN  22
+#define XIAO_SCL_PIN  23
+
+// For ESP32 DevKit:
+#define XIAO_SDA_PIN  21
+#define XIAO_SCL_PIN  22
+```
+
+---
+
+## Supported Hardware
+
+**Microcontrollers:**
+- ESP32-C6 (XIAO Seed)
+- ESP32-S3
+- ESP32 DevKit
+- All ESP32 variants with I2C and ADC
+
+**Servo Control:**
+- PCA9685 16-channel PWM driver (I2C address 0x40)
+- Up to 62 PCA9685 boards (992 servo channels)
+- Any standard servo (SG90, MG996R, etc.)
+
+**Input Devices:**
+- Analog joysticks (2-axis, ESP32 ADC)
+- HC-SR04 ultrasonic distance sensors
+
+---
+
+## Installation
+
+1. Download or clone this repository
+2. Open `main/main.ino` in Arduino IDE
+3. Install required library:
+   - Adafruit_PWMServoDriver
+4. Select your ESP32 board in Arduino IDE
+5. Upload to ESP32
+
+---
+
+## Documentation
+
+**Getting Started:**
+- [README.md](README.md) - This file (quick start and examples)
+- [CALIBRATION_GUIDE.md](CALIBRATION_GUIDE.md) - Servo calibration step-by-step
+- [CONFIG_GUIDE.md](CONFIG_GUIDE.md) - Complete configuration reference
+
+**Advanced:**
+- [ARCHITECTURE.md](ARCHITECTURE.md) - System design and component structure
+- [CHANGELOG.md](CHANGELOG.md) - Version history and release notes
+
+---
+
+## How It Works
+
+### Configuration-Driven
+
+TwiST separates **what devices you have** (configuration) from **how you use them** (code).
+
+**Configuration** (TwiST_Config.h):
+```cpp
+// Hardware topology - what devices exist
+static constexpr std::array<ServoConfig, 2> SERVO_CONFIGS = {{...}};
+```
+
+**Application Code** (main.ino):
+```cpp
+// Device usage - what devices do
+App::servo("GripperServo").setAngle(90);
+```
+
+Change device count, add sensors, swap pins - all in config file. Application code stays unchanged.
+
+### Two-Line Initialization
+
+```cpp
+framework.initialize();          // 1. Core framework + Logger
+App::initializeSystem(framework); // 2. Create devices from config
+```
+
+Framework handles:
+- Driver creation (PCA9685, ESP32ADC, etc.)
+- Device initialization (servos, joysticks, sensors)
+- Calibration (from config)
+- Registration (makes devices available)
+
+### Automatic Updates
+
+```cpp
+framework.update();  // Call this in loop()
+```
+
+Handles:
+- Servo animations (easing, speed-based movement)
+- Distance sensor measurements
+- Event processing
+- Device state updates
+
+---
+
+## Device Calibration
+
+Servos need calibration because manufacturers vary. Framework supports two methods:
+
+**Method 1: PWM Steps (Recommended)**
+```cpp
+{"GripperServo", 0, 0, 100, CalibrationMode::STEPS, 110, 540, 0, 0, 0, 0}
+//                                                    ^^^^^^^^
+//                                                    min=110, max=540
+```
+
+**Method 2: Microseconds (Traditional)**
+```cpp
+{"BaseServo", 0, 1, 101, CalibrationMode::MICROSECONDS, 0, 0, 500, 2500, 0, 180}
+//                                                              ^^^^^^^^^^^^^^^^^
+//                                                              500us-2500us, 0-180 degrees
+```
+
+See [CALIBRATION_GUIDE.md](CALIBRATION_GUIDE.md) for finding your servo's values.
+
+---
+
+## Logging and Debugging
+
+Framework uses structured logging:
+
+```cpp
+Logger::info("APP", "System started");
+Logger::error("APP", "Servo not found");
+Logger::logf(Logger::Level::INFO, "APP", "Angle: %d", angle);
+```
+
+Output format:
+```
+[12345] [INFO] [APP] System started
+[12360] [ERROR] [APP] Servo not found
+[12375] [INFO] [APP] Angle: 90
+```
+
+**Severity Levels:**
+- DEBUG - Detailed diagnostic information
+- INFO - General information messages
+- WARNING - Potential issues
+- ERROR - Errors (recoverable)
+- FATAL - Critical errors (system halts)
 
 ---
 
 ## Project Structure
 
 ```
-PROJEKTAS/
-├── examples/
-│   ├── basic_servo/           # Start here
-│   ├── distance_sensor/        # HC-SR04 example
-│   ├── distance_servo_control/ # Hand distance control
-│   └── advanced/               # Production examples with filtering
 ├── main/
-│   └── main.ino                # Full example (joystick + servos)
-├── README.md                   # This file
-├── CALIBRATION_GUIDE.md        # How to calibrate servos
-├── CHANGELOG.md                # Version history
-└── LICENSE                     # MIT License
+│   ├── main.ino                    # Your application code
+│   └── src/TwiST_Framework/       # Framework (copied from src/)
+├── src/TwiST_Framework/            # Framework source
+│   ├── TwiST_Config.h              # EDIT THIS - Device configuration
+│   ├── TwiST.h/cpp                 # Framework core
+│   ├── ApplicationConfig.h/cpp     # Device initialization
+│   ├── TwiST_ConfigValidator.h/cpp # Safety checks
+│   ├── Core/
+│   │   ├── Logger.h/cpp            # Logging system
+│   │   ├── EventBus.h/cpp          # Event system
+│   │   ├── DeviceRegistry.h/cpp    # Device management
+│   │   └── ConfigManager.h/cpp     # Config loading (future)
+│   ├── Devices/
+│   │   ├── Servo.h/cpp             # Servo control
+│   │   ├── Joystick.h/cpp          # Joystick input
+│   │   └── DistanceSensor.h/cpp    # Distance sensing
+│   └── Drivers/
+│       ├── PWM/PCA9685.h/cpp       # PWM driver
+│       ├── ADC/ESP32ADC.h/cpp      # ADC driver
+│       └── Distance/HCSR04.h/cpp   # Ultrasonic driver
+├── README.md                        # This file
+├── CALIBRATION_GUIDE.md            # Calibration procedures
+├── CONFIG_GUIDE.md                 # Configuration reference
+└── CHANGELOG.md                    # Version history
 ```
 
 ---
 
-## Troubleshooting
+## Common Questions
 
-**Servo buzzing:**
-- Wrong calibration values
-- See CALIBRATION_GUIDE.md
+**Q: How do I add more servos?**
+A: Edit `SERVO_CONFIGS` in `TwiST_Config.h`, increment array size, add entry. Framework creates it automatically.
 
-**Servo not moving:**
-- Forgot `framework.update()` in loop()
-- Device not registered
+**Q: How do I find calibration values for my servo?**
+A: See [CALIBRATION_GUIDE.md](CALIBRATION_GUIDE.md) for step-by-step procedure.
 
-**Joystick always center:**
-- Wrong calibration
-- Deadzone too large
+**Q: Can I use different ESP32 board?**
+A: Yes, just update I2C pins in `TwiST_Config.h`.
 
-**Distance sensor jittery:**
-- Use low-pass filter: `sensor.setFilterStrength(0.3)`
-- Use integer cm: `sensor.getDistanceCm()`
+**Q: How many servos can I control?**
+A: 16 per PCA9685 board, up to 62 boards = 992 servos total.
+
+**Q: Do I need to call device initialization manually?**
+A: No, `App::initializeSystem(framework)` handles everything.
+
+**Q: What if I misspell a device name?**
+A: System halts with error message listing available device names.
+
+---
+
+## Examples Included
+
+**Simple Examples:**
+- Basic servo control
+- Joystick input reading
+- Distance sensor reading
+
+**Advanced Examples:**
+- Joystick-controlled robot arm
+- Autonomous servo sequences with easing
+- Distance-based gripper control
+- Multi-servo coordination
+- Incremental movement patterns
+
+See `main/main.ino` for working demo.
+
+---
+
+## Safety Features
+
+**Pre-Flight Checks:**
+Framework validates configuration before hardware initialization:
+- Duplicate device IDs
+- Duplicate device names
+- I2C address conflicts
+- GPIO pin collisions
+- PWM channel overlaps
+
+**Fail-Fast Behavior:**
+If configuration is invalid, system halts immediately with error message. Prevents hardware damage from misconfiguration.
+
+**Example Error Output:**
+```
+[1234] [FATAL] [VALIDATOR] I2C address conflict!
+[1234] [FATAL] [VALIDATOR] Servo 'GripperServo' and 'BaseServo' both use address 0x40
+[1234] [FATAL] [APP] System halted - fix TwiST_Config.h and recompile
+```
+
+---
+
+## Version History
+
+- **v1.2.0** (2026-01-27) - Logging system, memory safety, single IO channel
+- **v1.1.0** (2026-01-26) - Single entry point API, config-driven architecture
+- **v1.0.0** (2026-01-20) - Initial release with event-driven framework
+
+See [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
 
 ---
 
 ## License
 
-MIT License
+Copyright (c) 2026 Voldemaras Birskys
+
+This project is provided as-is for educational and personal use.
 
 ---
 
-## Author
+## Contact
 
-Voldemaras Birškys
+**Author:** Voldemaras Birskys
+**Email:** voldemaras@gmail.com
+**Project:** TwiST Framework (Twin System Technology)
 
-TwiST Framework v1.0
+---
+
+**TwiST Framework v1.2.0 - Complex Robotics Made Simple**

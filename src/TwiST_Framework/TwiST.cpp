@@ -19,28 +19,34 @@ TwiSTFramework::~TwiSTFramework() {
 // ===== Initialization =====
 
 bool TwiSTFramework::initialize(bool autoLoadConfig) {
+    // Initialize Logger first (before any other output)
+    Logger::begin(Serial, Logger::Level::INFO);
+
     Serial.println("");
     Serial.println("========================================");
-    Serial.println("   TwiST Framework v1.0");
+    Serial.println("   TwiST Framework v1.2.0");
     Serial.println("========================================");
     Serial.println("");
 
-    // Initialize ConfigManager first
+    Logger::info("FRAMEWORK", "Initializing TwiST Framework...");
+
+    // Initialize ConfigManager
     if (!_configManager.initialize()) {
-        Serial.println("[TwiST ERROR] ConfigManager init failed");
+        Logger::error("FRAMEWORK", "ConfigManager initialization failed");
         return false;
     }
+    Logger::info("FRAMEWORK", "ConfigManager initialized");
 
     // Auto-load configuration if requested
     if (autoLoadConfig) {
-        Serial.println("[TwiST] Auto-loading configuration...");
+        Logger::info("FRAMEWORK", "Auto-loading configuration...");
         loadConfigFrom(SOURCE_LITTLEFS);
     }
 
     _startTime = millis();
     _initialized = true;
 
-    Serial.println("[TwiST] Initialization complete!");
+    Logger::info("FRAMEWORK", "Initialization complete");
     Serial.println("");
 
     return true;
@@ -51,7 +57,7 @@ void TwiSTFramework::shutdown() {
         return;
     }
 
-    Serial.println("[TwiST] Shutting down...");
+    Logger::info("FRAMEWORK", "Shutting down...");
 
     // Shutdown all bridges
     for (uint8_t i = 0; i < _bridgeCount; i++) {
@@ -64,7 +70,7 @@ void TwiSTFramework::shutdown() {
     _registry.shutdownAll();
 
     _initialized = false;
-    Serial.println("[TwiST] Shutdown complete");
+    Logger::info("FRAMEWORK", "Shutdown complete");
 }
 
 // ===== Main Update Loop =====
@@ -93,8 +99,7 @@ void TwiSTFramework::update() {
 // ===== Configuration =====
 
 bool TwiSTFramework::loadConfig(const char* filename) {
-    Serial.print("[TwiST] Loading config from: ");
-    Serial.println(filename);
+    Logger::logf(Logger::Level::INFO, "FRAMEWORK", "Loading config from: %s", filename);
 
     // For Phase 1, delegate to ConfigManager
     // In later phases, this will also create devices from config
@@ -102,7 +107,7 @@ bool TwiSTFramework::loadConfig(const char* filename) {
     StaticJsonDocument<2048> doc;
     File file = LittleFS.open(filename, "r");
     if (!file) {
-        Serial.println("[TwiST ERROR] Cannot open config file");
+        Logger::error("FRAMEWORK", "Cannot open config file");
         return false;
     }
 
@@ -110,21 +115,19 @@ bool TwiSTFramework::loadConfig(const char* filename) {
     file.close();
 
     if (error) {
-        Serial.print("[TwiST ERROR] JSON parse failed: ");
-        Serial.println(error.c_str());
+        Logger::logf(Logger::Level::ERROR, "FRAMEWORK", "JSON parse failed: %s", error.c_str());
         return false;
     }
 
     // Merge config
     _configManager.mergeConfig(doc);
 
-    Serial.println("[TwiST] Configuration loaded");
+    Logger::info("FRAMEWORK", "Configuration loaded");
     return true;
 }
 
 bool TwiSTFramework::saveConfig(const char* filename) {
-    Serial.print("[TwiST] Saving config to: ");
-    Serial.println(filename);
+    Logger::logf(Logger::Level::INFO, "FRAMEWORK", "Saving config to: %s", filename);
 
     // For Phase 1, simple save
     return _configManager.save(SOURCE_LITTLEFS);
@@ -142,21 +145,19 @@ bool TwiSTFramework::saveConfigTo(ConfigSource source) {
 
 bool TwiSTFramework::addBridge(IBridge* bridge) {
     if (bridge == NULL) {
-        Serial.println("[TwiST ERROR] Cannot add NULL bridge");
+        Logger::error("FRAMEWORK", "Cannot add NULL bridge");
         return false;
     }
 
     if (_bridgeCount >= MAX_BRIDGES) {
-        Serial.println("[TwiST ERROR] Bridge limit reached");
+        Logger::error("FRAMEWORK", "Bridge limit reached");
         return false;
     }
 
     _bridges[_bridgeCount] = bridge;
     _bridgeCount++;
 
-    Serial.print("[TwiST] Added bridge (total: ");
-    Serial.print(_bridgeCount);
-    Serial.println(")");
+    Logger::logf(Logger::Level::INFO, "FRAMEWORK", "Added bridge (total: %d)", _bridgeCount);
 
     return true;
 }
@@ -175,7 +176,7 @@ bool TwiSTFramework::removeBridge(IBridge* bridge) {
             _bridges[_bridgeCount - 1] = NULL;
             _bridgeCount--;
 
-            Serial.println("[TwiST] Removed bridge");
+            Logger::info("FRAMEWORK", "Removed bridge");
             return true;
         }
     }
@@ -186,40 +187,29 @@ bool TwiSTFramework::removeBridge(IBridge* bridge) {
 // ===== Statistics & Diagnostics =====
 
 void TwiSTFramework::printStatus() {
-    Serial.println("");
-    Serial.println("========== Framework Status ==========");
-    Serial.print("Uptime: ");
-    Serial.print(getUptime() / 1000);
-    Serial.println(" seconds");
+    Logger::info("FRAMEWORK", "");
+    Logger::info("FRAMEWORK", "========== Framework Status ==========");
+    Logger::logf(Logger::Level::INFO, "FRAMEWORK", "Uptime: %lu seconds", getUptime() / 1000);
+    Logger::logf(Logger::Level::INFO, "FRAMEWORK", "Updates: %lu", _updateCount);
 
-    Serial.print("Updates: ");
-    Serial.println(_updateCount);
+    Logger::info("FRAMEWORK", "");
+    Logger::info("FRAMEWORK", "--- Device Registry ---");
+    Logger::logf(Logger::Level::INFO, "FRAMEWORK", "Total devices: %d", _registry.getDeviceCount());
+    Logger::logf(Logger::Level::INFO, "FRAMEWORK", "Input devices: %d", _registry.getInputDeviceCount());
+    Logger::logf(Logger::Level::INFO, "FRAMEWORK", "Output devices: %d", _registry.getOutputDeviceCount());
 
-    Serial.println("");
-    Serial.println("--- Device Registry ---");
-    Serial.print("Total devices: ");
-    Serial.println(_registry.getDeviceCount());
-    Serial.print("Input devices: ");
-    Serial.println(_registry.getInputDeviceCount());
-    Serial.print("Output devices: ");
-    Serial.println(_registry.getOutputDeviceCount());
+    Logger::info("FRAMEWORK", "");
+    Logger::info("FRAMEWORK", "--- Event Bus ---");
+    Logger::logf(Logger::Level::INFO, "FRAMEWORK", "Active listeners: %lu", _eventBus.getListenerCount());
+    Logger::logf(Logger::Level::INFO, "FRAMEWORK", "Pending events: %d", _eventBus.getPendingEventCount());
+    Logger::logf(Logger::Level::INFO, "FRAMEWORK", "Total events: %lu", _eventBus.getEventCount());
 
-    Serial.println("");
-    Serial.println("--- Event Bus ---");
-    Serial.print("Active listeners: ");
-    Serial.println(_eventBus.getListenerCount());
-    Serial.print("Pending events: ");
-    Serial.println(_eventBus.getPendingEventCount());
-    Serial.print("Total events: ");
-    Serial.println(_eventBus.getEventCount());
+    Logger::info("FRAMEWORK", "");
+    Logger::info("FRAMEWORK", "--- Bridges ---");
+    Logger::logf(Logger::Level::INFO, "FRAMEWORK", "Active bridges: %d", _bridgeCount);
 
-    Serial.println("");
-    Serial.println("--- Bridges ---");
-    Serial.print("Active bridges: ");
-    Serial.println(_bridgeCount);
-
-    Serial.println("======================================");
-    Serial.println("");
+    Logger::info("FRAMEWORK", "======================================");
+    Logger::info("FRAMEWORK", "");
 }
 
 unsigned long TwiSTFramework::getUptime() const {
@@ -234,13 +224,13 @@ unsigned long TwiSTFramework::getUptime() const {
 bool TwiSTFramework::initializeDevicesFromConfig() {
     // Phase 1: Not implemented yet
     // Phase 4: Will use PluginManager to create devices from JSON
-    Serial.println("[TwiST] Device auto-creation not yet implemented (Phase 4 feature)");
+    Logger::info("FRAMEWORK", "Device auto-creation not yet implemented (Phase 4 feature)");
     return true;
 }
 
 bool TwiSTFramework::initializeBridgesFromConfig() {
     // Phase 1: Not implemented yet
     // Phase 2: Will create GenericBridge from JSON config
-    Serial.println("[TwiST] Bridge auto-creation not yet implemented (Phase 2 feature)");
+    Logger::info("FRAMEWORK", "Bridge auto-creation not yet implemented (Phase 2 feature)");
     return true;
 }

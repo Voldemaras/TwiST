@@ -1,4 +1,7 @@
 #include "ConfigManager.h"
+#include "Logger.h"  // For centralized logging (v1.2.0)
+
+using TwiST::Logger;  // Use Logger from TwiST namespace
 
 ConfigManager::ConfigManager() : _initialized(false) {
 }
@@ -12,21 +15,21 @@ ConfigManager::~ConfigManager() {
 // ===== Initialization =====
 
 bool ConfigManager::initialize() {
-    Serial.println("[ConfigManager] Initializing...");
+    Logger::info("CONFIG", "Initializing...");
 
     // Initialize LittleFS
     if (!LittleFS.begin(true)) {
-        Serial.println("[ConfigManager ERROR] LittleFS init failed");
+        Logger::error("CONFIG", "LittleFS init failed");
         return false;
     }
-    Serial.println("[ConfigManager] LittleFS mounted");
+    Logger::info("CONFIG", "LittleFS mounted");
 
     // Initialize Preferences
     if (!_prefs.begin("robot_cfg", false)) {
-        Serial.println("[ConfigManager ERROR] Preferences init failed");
+        Logger::error("CONFIG", "Preferences init failed");
         return false;
     }
-    Serial.println("[ConfigManager] Preferences ready");
+    Logger::info("CONFIG", "Preferences ready");
 
     _initialized = true;
     return true;
@@ -35,11 +38,9 @@ bool ConfigManager::initialize() {
 // ===== Load/Save Entire Config =====
 
 bool ConfigManager::load(ConfigSource source) {
-    Serial.print("[ConfigManager] Loading from ");
-
     switch (source) {
         case SOURCE_LITTLEFS:
-            Serial.println("LittleFS...");
+            Logger::info("CONFIG", "Loading from LittleFS...");
             // Load device configs
             loadFromLittleFS("/config/devices.json", _deviceConfigs);
             // Load bridge config
@@ -49,38 +50,36 @@ bool ConfigManager::load(ConfigSource source) {
             return true;
 
         case SOURCE_EEPROM:
-            Serial.println("EEPROM...");
+            Logger::info("CONFIG", "Loading from EEPROM...");
             return true;
 
         case SOURCE_DEFAULT:
-            Serial.println("defaults...");
+            Logger::info("CONFIG", "Loading from defaults...");
             resetToDefaults();
             return true;
 
         default:
-            Serial.println("unknown source");
+            Logger::error("CONFIG", "Unknown source");
             return false;
     }
 }
 
 bool ConfigManager::save(ConfigSource source) {
-    Serial.print("[ConfigManager] Saving to ");
-
     switch (source) {
         case SOURCE_LITTLEFS:
-            Serial.println("LittleFS...");
+            Logger::info("CONFIG", "Saving to LittleFS...");
             saveToLittleFS("/config/devices.json", _deviceConfigs);
             saveToLittleFS("/config/bridges.json", _bridgeConfig);
             saveToLittleFS("/config/system.json", _systemConfig);
             return true;
 
         case SOURCE_EEPROM:
-            Serial.println("EEPROM...");
+            Logger::info("CONFIG", "Saving to EEPROM...");
             // For Phase 1, EEPROM save is simple
             return true;
 
         default:
-            Serial.println("unknown source");
+            Logger::error("CONFIG", "Unknown source");
             return false;
     }
 }
@@ -134,20 +133,19 @@ bool ConfigManager::setDeviceConfig(uint16_t deviceId, const JsonDocument& confi
         devices.add(config);
     }
 
-    Serial.print("[ConfigManager] Set device config for ID: ");
-    Serial.println(deviceId);
+    Logger::logf(Logger::Level::INFO, "CONFIG", "Set device config for ID: %d", deviceId);
     return true;
 }
 
 bool ConfigManager::setBridgeConfig(const JsonDocument& config) {
     _bridgeConfig.set(config);
-    Serial.println("[ConfigManager] Set bridge config");
+    Logger::info("CONFIG", "Set bridge config");
     return true;
 }
 
 bool ConfigManager::setSystemConfig(const JsonDocument& config) {
     _systemConfig.set(config);
-    Serial.println("[ConfigManager] Set system config");
+    Logger::info("CONFIG", "Set system config");
     return true;
 }
 
@@ -165,13 +163,13 @@ void ConfigManager::mergeConfig(const JsonDocument& config) {
         _systemConfig.set(config["system"]);
     }
 
-    Serial.println("[ConfigManager] Merged runtime config");
+    Logger::info("CONFIG", "Merged runtime config");
 }
 
 // ===== Reset =====
 
 void ConfigManager::resetToDefaults() {
-    Serial.println("[ConfigManager] Resetting to defaults");
+    Logger::info("CONFIG", "Resetting to defaults");
 
     _deviceConfigs.clear();
     _bridgeConfig.clear();
@@ -190,7 +188,7 @@ bool ConfigManager::validate(const JsonDocument& config) const {
     // TODO: Implement JSON schema validation in later phases
 
     if (!config.containsKey("version")) {
-        Serial.println("[ConfigManager] Validation failed: missing 'version'");
+        Logger::error("CONFIG", "Validation failed: missing 'version'");
         return false;
     }
 
@@ -201,15 +199,13 @@ bool ConfigManager::validate(const JsonDocument& config) const {
 
 bool ConfigManager::loadFromLittleFS(const char* filename, JsonDocument& doc) {
     if (!LittleFS.exists(filename)) {
-        Serial.print("[ConfigManager] File not found: ");
-        Serial.println(filename);
+        Logger::logf(Logger::Level::INFO, "CONFIG", "File not found: %s", filename);
         return false;
     }
 
     File file = LittleFS.open(filename, "r");
     if (!file) {
-        Serial.print("[ConfigManager ERROR] Cannot open file: ");
-        Serial.println(filename);
+        Logger::logf(Logger::Level::ERROR, "CONFIG", "Cannot open file: %s", filename);
         return false;
     }
 
@@ -217,15 +213,12 @@ bool ConfigManager::loadFromLittleFS(const char* filename, JsonDocument& doc) {
     file.close();
 
     if (error) {
-        Serial.print("[ConfigManager ERROR] JSON parse failed for ");
-        Serial.print(filename);
-        Serial.print(": ");
-        Serial.println(error.c_str());
+        Logger::logf(Logger::Level::ERROR, "CONFIG", "JSON parse failed for %s: %s",
+                    filename, error.c_str());
         return false;
     }
 
-    Serial.print("[ConfigManager] Loaded ");
-    Serial.println(filename);
+    Logger::logf(Logger::Level::INFO, "CONFIG", "Loaded %s", filename);
     return true;
 }
 
@@ -235,30 +228,26 @@ bool ConfigManager::saveToLittleFS(const char* filename, const JsonDocument& doc
 
     File file = LittleFS.open(filename, "w");
     if (!file) {
-        Serial.print("[ConfigManager ERROR] Cannot write file: ");
-        Serial.println(filename);
+        Logger::logf(Logger::Level::ERROR, "CONFIG", "Cannot write file: %s", filename);
         return false;
     }
 
     serializeJsonPretty(doc, file);
     file.close();
 
-    Serial.print("[ConfigManager] Saved ");
-    Serial.println(filename);
+    Logger::logf(Logger::Level::INFO, "CONFIG", "Saved %s", filename);
     return true;
 }
 
 bool ConfigManager::loadFromEEPROM(const char* namespace_name, JsonDocument& doc) {
     // Phase 1: Basic EEPROM load
     // Actual implementation would serialize/deserialize JSON to/from EEPROM
-    Serial.print("[ConfigManager] Loading from EEPROM namespace: ");
-    Serial.println(namespace_name);
+    Logger::logf(Logger::Level::INFO, "CONFIG", "Loading from EEPROM namespace: %s", namespace_name);
     return true;
 }
 
 bool ConfigManager::saveToEEPROM(const char* namespace_name, const JsonDocument& doc) {
     // Phase 1: Basic EEPROM save
-    Serial.print("[ConfigManager] Saving to EEPROM namespace: ");
-    Serial.println(namespace_name);
+    Logger::logf(Logger::Level::INFO, "CONFIG", "Saving to EEPROM namespace: %s", namespace_name);
     return true;
 }

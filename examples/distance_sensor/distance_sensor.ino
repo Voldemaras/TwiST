@@ -1,5 +1,5 @@
 /* ============================================================================
- * TwiST Framework | Distance Sensor Example
+ * TwiST Framework v1.2.0 | Distance Sensor Example
  * ============================================================================
  *
  * MINIMAL EXAMPLE: One HC-SR04 ultrasonic sensor, clean architecture showcase.
@@ -28,12 +28,18 @@
  *   - Range: 2cm - 400cm
  *   - Resolution: 0.3cm
  *
+ * NOTE: This is a BASIC example with direct device instantiation.
+ *       For PRODUCTION code patterns, see main.ino which demonstrates:
+ *         - ApplicationConfig.cpp for centralized device management
+ *         - Name-based access: App::distanceSensor("ObstacleSensor").getDistanceCm()
+ *         - Logger for structured output (v1.2.0)
+ *
  * Author: Voldemaras Birskys
  * License: MIT
  * ============================================================================ */
 
-#include "src/TwiST_Framework/TwiST.h"
-#include "src/TwiST_Framework/Drivers/Distance/HCSR04.h"
+#include "../../src/TwiST_Framework/TwiST.h"
+#include "../../src/TwiST_Framework/Drivers/Distance/HCSR04.h"
 
 using namespace TwiST;
 using namespace TwiST::Devices;
@@ -53,7 +59,8 @@ HCSR04 hcsr04(16, 17);  // TRIG=GPIO16 (D6), ECHO=GPIO17 (D7)
 IDistanceDriver& distanceDriver = hcsr04;  // Device sees only interface, not hardware
 
 // Layer 4: Logical device (hardware-independent)
-DistanceSensor sensor(distanceDriver, 300, framework.eventBus(), 100);  // 100ms interval
+// NOTE: Device name "ProximitySensor" added for production-style name-based access
+DistanceSensor sensor(distanceDriver, 300, "ProximitySensor", framework.eventBus(), 100);  // 100ms interval
 
 // ============================================================================
 // Arduino Setup
@@ -62,10 +69,6 @@ DistanceSensor sensor(distanceDriver, 300, framework.eventBus(), 100);  // 100ms
 void setup() {
     Serial.begin(115200);
     delay(1000);
-
-    Serial.println("\n========================================");
-    Serial.println("   TwiST Framework - Distance Sensor");
-    Serial.println("========================================\n");
 
     // Initialize framework
     framework.initialize();
@@ -79,12 +82,11 @@ void setup() {
     // Register device
     framework.registry()->registerDevice(&sensor);
 
-    Serial.println("HC-SR04 Ultrasonic Sensor initialized");
-    Serial.println("Range: 2cm - 400cm");
-    Serial.println("Resolution: 0.3cm");
-    Serial.println("\nWARNING: Ensure ECHO pin uses voltage divider!");
-    Serial.println("         (5V → 3.3V protection)\n");
-    Serial.println("Starting distance measurement...\n");
+    Logger::info("DISTANCE", "HC-SR04 Ultrasonic Sensor initialized");
+    Logger::info("DISTANCE", "Range: 2cm - 400cm");
+    Logger::info("DISTANCE", "Resolution: 0.3cm");
+    Logger::warning("DISTANCE", "Ensure ECHO pin uses voltage divider (5V -> 3.3V protection)");
+    Logger::info("DISTANCE", "Starting distance measurement...");
 }
 
 // ============================================================================
@@ -100,13 +102,10 @@ void loop() {
 
     // Print distance
     if (sensor.isInRange()) {
-        Serial.print("Distance: ");
-        Serial.print(distance, 1);
-        Serial.print(" cm (");
-        Serial.print(distance / 100.0f, 2);
-        Serial.println(" m)");
+        Logger::logf(Logger::Level::INFO, "DISTANCE", "Distance: %.1f cm (%.2f m)",
+                    distance, distance / 100.0f);
     } else {
-        Serial.println("Out of range (> 400cm)");
+        Logger::info("DISTANCE", "Out of range (> 400cm)");
     }
 
     delay(100);  // Match measurement interval

@@ -1,5 +1,8 @@
 #include "DeviceRegistry.h"
+#include "Logger.h"  // For centralized logging (v1.2.0)
 #include <string.h>
+
+using TwiST::Logger;  // Use Logger from TwiST namespace
 
 DeviceRegistry::DeviceRegistry() : _deviceCount(0) {
     // Initialize device array to NULL
@@ -17,21 +20,19 @@ DeviceRegistry::~DeviceRegistry() {
 
 bool DeviceRegistry::registerDevice(IDevice* device) {
     if (device == NULL) {
-        Serial.println("[Registry ERROR] Cannot register NULL device");
+        Logger::error("REGISTRY", "Cannot register NULL device");
         return false;
     }
 
     if (_deviceCount >= MAX_DEVICES) {
-        Serial.println("[Registry ERROR] Registry full, cannot register more devices");
+        Logger::error("REGISTRY", "Registry full, cannot register more devices");
         return false;
     }
 
     // Check for duplicate ID
     DeviceInfo info = device->getInfo();
     if (findDevice(info.id) != NULL) {
-        Serial.print("[Registry ERROR] Device ID ");
-        Serial.print(info.id);
-        Serial.println(" already registered");
+        Logger::logf(Logger::Level::ERROR, "REGISTRY", "Device ID %d already registered", info.id);
         return false;
     }
 
@@ -39,13 +40,8 @@ bool DeviceRegistry::registerDevice(IDevice* device) {
     _devices[_deviceCount] = device;
     _deviceCount++;
 
-    Serial.print("[Registry] Registered device: ");
-    Serial.print(info.name);
-    Serial.print(" (ID: ");
-    Serial.print(info.id);
-    Serial.print(", Type: ");
-    Serial.print(info.type);
-    Serial.println(")");
+    Logger::logf(Logger::Level::INFO, "REGISTRY", "Registered device: %s (ID: %d, Type: %s)",
+                info.name, info.id, info.type);
 
     return true;
 }
@@ -53,8 +49,7 @@ bool DeviceRegistry::registerDevice(IDevice* device) {
 bool DeviceRegistry::unregisterDevice(uint16_t deviceId) {
     for (uint8_t i = 0; i < _deviceCount; i++) {
         if (_devices[i] && _devices[i]->getInfo().id == deviceId) {
-            Serial.print("[Registry] Unregistering device ID: ");
-            Serial.println(deviceId);
+            Logger::logf(Logger::Level::INFO, "REGISTRY", "Unregistering device ID: %d", deviceId);
 
             // Shift remaining devices down
             for (uint8_t j = i; j < _deviceCount - 1; j++) {
@@ -69,7 +64,7 @@ bool DeviceRegistry::unregisterDevice(uint16_t deviceId) {
 }
 
 void DeviceRegistry::unregisterAll() {
-    Serial.println("[Registry] Unregistering all devices");
+    Logger::info("REGISTRY", "Unregistering all devices");
     for (uint8_t i = 0; i < MAX_DEVICES; i++) {
         _devices[i] = NULL;
     }
@@ -189,20 +184,17 @@ IOutputDevice* DeviceRegistry::getOutputDevice(uint16_t deviceId) {
 // ===== Bulk Operations =====
 
 bool DeviceRegistry::initializeAll() {
-    Serial.println("[Registry] Initializing all devices...");
+    Logger::info("REGISTRY", "Initializing all devices...");
     bool allSuccess = true;
 
     for (uint8_t i = 0; i < _deviceCount; i++) {
         if (_devices[i]) {
             DeviceInfo info = _devices[i]->getInfo();
-            Serial.print("[Registry] Initializing ");
-            Serial.print(info.name);
-            Serial.print("... ");
 
             if (_devices[i]->initialize()) {
-                Serial.println("OK");
+                Logger::logf(Logger::Level::INFO, "REGISTRY", "Initializing %s... OK", info.name);
             } else {
-                Serial.println("FAILED");
+                Logger::logf(Logger::Level::ERROR, "REGISTRY", "Initializing %s... FAILED", info.name);
                 allSuccess = false;
             }
         }
@@ -220,7 +212,7 @@ void DeviceRegistry::updateAll() {
 }
 
 void DeviceRegistry::shutdownAll() {
-    Serial.println("[Registry] Shutting down all devices...");
+    Logger::info("REGISTRY", "Shutting down all devices...");
     for (uint8_t i = 0; i < _deviceCount; i++) {
         if (_devices[i]) {
             _devices[i]->shutdown();

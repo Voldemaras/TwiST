@@ -3,8 +3,9 @@
 namespace TwiST {
     namespace Devices {
 
-        Joystick::Joystick(IADCDriver& xAxis, IADCDriver& yAxis, uint16_t deviceId, EventBus& eventBus)
-            : _xAxis(xAxis), _yAxis(yAxis), _deviceId(deviceId), _eventBus(eventBus) {
+        Joystick::Joystick(IADCDriver& xAxis, IADCDriver& yAxis, uint16_t deviceId,
+                           const char* name, EventBus& eventBus)
+            : _xAxis(xAxis), _yAxis(yAxis), _deviceId(deviceId), _name(name), _eventBus(eventBus) {
             // All dependencies locked at construction - no half-initialized state possible
         }
 
@@ -38,7 +39,7 @@ namespace TwiST {
         DeviceInfo Joystick::getInfo() const {
             DeviceInfo info;
             info.type = "Joystick";
-            info.name = "Analog Joystick";
+            info.name = _name;  // Use human-readable name from constructor
             info.id = _deviceId;
             info.capabilities = CAP_INPUT | CAP_ANALOG | CAP_CALIBRATABLE | CAP_CONFIGURABLE;
             info.channelCount = 2;  // X and Y axes
