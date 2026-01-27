@@ -74,21 +74,21 @@ TwiST Framework consists of 8 architectural layers, each with clear responsibili
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  Layer 1: Application (main.ino)               │  User application logic
+│  Layer 1: Application (main.ino)                │  User application logic
 ├─────────────────────────────────────────────────┤
-│  Layer 2: TwiST_Config.h                       │  Device topology (data)
+│  Layer 2: TwiST_Config.h                        │  Device topology (data)
 ├─────────────────────────────────────────────────┤
-│  Layer 3: TwiST_ConfigValidator                │  Pre-flight safety checks
+│  Layer 3: TwiST_ConfigValidator                 │  Pre-flight safety checks
 ├─────────────────────────────────────────────────┤
-│  Layer 4: ApplicationConfig                    │  Device/driver initialization
+│  Layer 4: ApplicationConfig                     │  Device/driver initialization
 ├─────────────────────────────────────────────────┤
-│  Layer 5: TwiST Framework Core                 │  EventBus, DeviceRegistry
+│  Layer 5: TwiST Framework Core                  │  EventBus, DeviceRegistry
 ├─────────────────────────────────────────────────┤
-│  Layer 6: Devices (Servo, Joystick, etc.)     │  High-level device logic
+│  Layer 6: Devices (Servo, Joystick, etc.)       │  High-level device logic
 ├─────────────────────────────────────────────────┤
-│  Layer 7: Driver Interfaces                    │  Abstract hardware contracts
+│  Layer 7: Driver Interfaces                     │  Abstract hardware contracts
 ├─────────────────────────────────────────────────┤
-│  Layer 8: Concrete Drivers (PCA9685, etc.)    │  Hardware implementation
+│  Layer 8: Concrete Drivers (PCA9685, etc.)      │  Hardware implementation
 └─────────────────────────────────────────────────┘
 ```
 
